@@ -3,113 +3,124 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Borrower;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 
 class UserController extends Controller
 {
-    // 1. Show the form to create a new Faculty member
-    public function create()
-    {
-        return view('admin.users.create');
-    }
-
     public function index(Request $request)
     {
-        $query = User::where('role_id', 2);
+        $query = Borrower::query();
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%");
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name',  'like', "%{$search}%")
+                    ->orWhere('email',      'like', "%{$search}%");
             });
         }
 
-        switch ($request->sort) {
-            case 'name_desc':
-                $query->orderBy('name', 'desc');
-                break;
-            case 'email_asc':
-                $query->orderBy('email', 'asc');
-                break;
-            case 'email_desc':
-                $query->orderBy('email', 'desc');
-                break;
-            case 'newest':
-                $query->orderBy('created_at', 'desc');
-                break;
-            case 'oldest':
-                $query->orderBy('created_at', 'asc');
-                break;
-            default: // name_asc
-                $query->orderBy('name', 'asc');
-                break;
-        }
+        match ($request->sort) {
+            'name_desc'  => $query->orderBy('last_name', 'desc'),
+            'email_asc'  => $query->orderBy('email', 'asc'),
+            'email_desc' => $query->orderBy('email', 'desc'),
+            'newest'     => $query->orderBy('created_at', 'desc'),
+            'oldest'     => $query->orderBy('created_at', 'asc'),
+            default      => $query->orderBy('last_name', 'asc'),
+        };
 
         $facultyMembers = $query->get();
 
         return view('admin.users.index', compact('facultyMembers'));
     }
 
-    public function edit(User $user)
+    public function create()
     {
-        // We use "Route Model Binding" here (User $user) to fetch the user automatically
-        return view('admin.users.edit', compact('user'));
-    }
-    public function destroy($id)
-    {
-        $user = User::findOrFail($id);
-
-        // Check for active borrows (status_id 1 = Borrowed)
-        $hasActiveBorrows = $user->borrowRecords()
-            ->where('status_id', 1)
-            ->exists();
-
-        if ($hasActiveBorrows) {
-            return redirect()->back()->with('error', 'Cannot delete this faculty member because they have active borrow records. Please make sure all equipment is returned first.');
-        }
-
-        $user->delete();
-        return redirect()->back()->with('success', 'Faculty member removed successfully.');
+        return view('admin.users.create');
     }
 
-    public function update(Request $request, User $user)
-    {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            // The email check ignores the current user's ID so it doesn't error out if they don't change it
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email,' . $user->id],
-        ]);
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-        ]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Faculty account updated successfully!');
-    }
-
-    // 2. Save the new Faculty member to the database
     public function store(Request $request)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'first_name'     => ['required', 'string', 'max:100'],
+            'last_name'      => ['required', 'string', 'max:100'],
+            'middle_name'    => ['nullable', 'string', 'max:100'],
+            'email'          => ['required', 'email', 'max:255', 'unique:borrowers,email'],
+            'contact_number' => ['nullable', 'string', 'max:20'],
+            'password'       => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role_id' => 2, // 2 is the ID for "Faculty" in your roles table
+        Borrower::create([
+            'first_name'     => $request->first_name,
+            'last_name'      => $request->last_name,
+            'middle_name'    => $request->middle_name,
+            'email'          => $request->email,
+            'contact_number' => $request->contact_number,
+            'password'       => Hash::make($request->password),
         ]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Faculty account created successfully!');
+        return redirect()->route('admin.users.index')->with('success', 'Borrower account created!');
+    }
+
+    public function edit($id)
+    {
+        $user = Borrower::findOrFail($id);
+        return view('admin.users.edit', compact('user'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = Borrower::findOrFail($id);
+
+        $request->validate([
+            'first_name'     => ['required', 'string', 'max:100'],
+            'last_name'      => ['required', 'string', 'max:100'],
+            'middle_name'    => ['nullable', 'string', 'max:100'],
+            'email'          => ['required', 'email', 'max:255', 'unique:borrowers,email,' . $user->borrower_id . ',borrower_id'],
+            'contact_number' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $user->update($request->only([
+            'first_name',
+            'last_name',
+            'middle_name',
+            'email',
+            'contact_number',
+        ]));
+
+        return redirect()->route('admin.users.index')->with('success', 'Borrower account updated!');
+    }
+
+    public function destroy($id)
+    {
+        $borrower = Borrower::findOrFail($id);
+
+        $hasActiveBorrows = $borrower->borrowRecords()
+            ->whereDoesntHave('returnRecord')
+            ->exists();
+
+        if ($hasActiveBorrows) {
+            return redirect()->back()->with('error', 'Cannot delete this borrower — they have active borrow records. Ensure all equipment is returned first.');
+        }
+
+        $borrower->delete(); // soft delete
+        return redirect()->back()->with('success', 'Borrower removed successfully.');
+    }
+    public function resetPassword(Request $request, $id)
+    {
+        $request->validate([
+            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
+        ]);
+
+        Borrower::findOrFail($id)->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+        ]);
+
+        return redirect()->route('admin.users.index')->with('success', 'Password reset successfully.');
     }
 }
