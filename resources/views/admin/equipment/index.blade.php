@@ -5,7 +5,7 @@
                 <h2 class="font-bold text-2xl text-brand-navy leading-tight tracking-tight uppercase">
                     Equipment Inventory
                 </h2>
-                <p class="text-sm text-neutral-body">Manage and monitor your campus sports assets.</p>
+                <p class="text-sm text-neutral-body">Manage and monitor your equipment.</p>
             </div>
 
             <a href="{{ route('admin.equipment.create') }}"
@@ -47,12 +47,24 @@
                             class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-orange focus:border-brand-orange">
                     </div>
 
+                    <select name="category" onchange="this.form.submit()"
+                        class="block pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-brand-orange focus:border-brand-orange rounded-md">
+                        <option value="">All Categories</option>
+                        @foreach($categories as $cat)
+                        <option value="{{ $cat->category_id }}" {{ request('category') == $cat->category_id ? 'selected' : '' }}>
+                            {{ $cat->category_name }}
+                        </option>
+                        @endforeach
+                    </select>
+
                     <select name="sort" onchange="this.form.submit()"
                         class="block pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-brand-orange focus:border-brand-orange rounded-md">
                         <option value="name_asc" {{ request('sort', 'name_asc') == 'name_asc'  ? 'selected' : '' }}>Name (A-Z)</option>
                         <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>Name (Z-A)</option>
                         <option value="stock_high" {{ request('sort') == 'stock_high' ? 'selected' : '' }}>Highest Stock</option>
                         <option value="stock_low" {{ request('sort') == 'stock_low'  ? 'selected' : '' }}>Lowest Stock</option>
+                        <option value="category_asc" {{ request('sort') == 'category_asc' ? 'selected' : '' }}>Category (A-Z)</option>
+                        <option value="category_desc" {{ request('sort') == 'category_desc' ? 'selected' : '' }}>Category (Z-A)</option>
                     </select>
 
                     <button type="submit"
@@ -60,7 +72,7 @@
                         Search
                     </button>
 
-                    @php $hasFilters = request()->filled('search') || request()->filled('sort'); @endphp
+                    @php $hasFilters = request()->filled('search') || request()->filled('sort') || request()->filled('category'); @endphp
                     <a @if($hasFilters) href="{{ route('admin.equipment.index') }}" @endif
                         class="text-sm font-medium whitespace-nowrap px-2 transition-all
             {{ $hasFilters ? 'text-gray-500 hover:text-brand-orange underline cursor-pointer' : 'text-gray-300 cursor-not-allowed' }}">
@@ -68,15 +80,17 @@
                     </a>
                 </form>
             </div>
+
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest">Equipment Details</th>
+                                <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest">Category</th>
                                 <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest text-center">Total Stock</th>
                                 <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest text-center">Availability</th>
-                                <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest text-right">Actions</th>
+                                <th class="px-6 py-4 text-xs font-black text-brand-navy uppercase tracking-widest text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -97,6 +111,11 @@
                                         </div>
                                     </div>
                                 </td>
+                                <td class="px-6 py-5">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase">
+                                        {{ $item->category->category_name ?? '—' }}
+                                    </span>
+                                </td>
                                 <td class="px-6 py-5 text-center font-bold text-neutral-body text-sm">
                                     {{ $item->total_quantity }}
                                 </td>
@@ -112,28 +131,36 @@
                                     @endif
                                 </td>
 
-                                {{-- FIXED ACTIONS COLUMN --}}
-                                <td class="px-6 py-5 text-right">
-                                    <div class="flex items-center justify-end gap-3">
-                                        <a href="{{ route('admin.equipment.edit', $item->equipment_id) }}"
-                                            class="inline-flex items-center justify-center bg-brand-navy border border-brand-navy hover:bg-slate-800 hover:border-slate-800 text-white px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors min-w-[70px]">
-                                            Edit
+                                {{-- CENTERED icon actions matching Faculty Management style --}}
+                                <td class="px-6 py-5 text-center">
+                                    <div class="flex items-center justify-center gap-3">
+
+                                        {{-- EDIT icon --}}
+                                        <a href="{{ route('admin.equipment.edit', $item->equipment_id) }}" title="Edit"
+                                            class="p-2 rounded-lg text-white bg-brand-navy hover:bg-slate-800 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
                                         </a>
 
-                                        <form action="{{ route('admin.equipment.destroy', $item->equipment_id) }}" method="POST" class="m-0 p-0 flex">
+                                        {{-- DELETE icon --}}
+                                        <form action="{{ route('admin.equipment.destroy', $item->equipment_id) }}" method="POST"
+                                            onsubmit="return confirm('Delete {{ addslashes($item->equipment_name) }}? This cannot be undone.')">
                                             @csrf @method('DELETE')
-                                            <button type="submit"
-                                                onclick="return confirm('Are you sure you want to delete this equipment?')"
-                                                class="inline-flex items-center justify-center border border-red-200 text-red-600 hover:bg-red-50 px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors min-w-[70px]">
-                                                Delete
+                                            <button type="submit" title="Delete"
+                                                class="p-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
                                             </button>
                                         </form>
+
                                     </div>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="px-6 py-10 text-center text-neutral-body font-medium italic">
+                                <td colspan="5" class="px-6 py-10 text-center text-neutral-body font-medium italic">
                                     No equipment currently in inventory.
                                 </td>
                             </tr>

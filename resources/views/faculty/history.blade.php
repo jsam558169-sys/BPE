@@ -23,8 +23,8 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             {{-- New Search and Sort Bar --}}
-            <div class="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <form method="GET" action="{{ route('faculty.history') }}" class="flex w-full md:w-2/3 gap-2 items-center">
+            <div class="mb-6 flex flex-col md:flex-row gap-3 items-center">
+                <form method="GET" action="{{ route('faculty.history') }}" class="flex w-full gap-2 items-center">
                     <div class="relative flex-1">
                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +72,6 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($myHistory as $record)
-                        {{-- ... (Your existing <tr> logic stays the same) ... --}}
                         <tr class="hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex flex-col">
@@ -82,12 +81,12 @@
                                             {{ $item->equipment->equipment_name }}
                                         </span>
                                         <span class="px-2 py-0.5 bg-app-bg text-brand-navy text-[10px] font-black rounded border border-gray-200">
-                                            x{{ $item->quantity }}
+                                            x{{ $item->quantity_borrowed }}
                                         </span>
                                     </div>
                                     @endforeach
                                     <span class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
-                                        Ref: #{{ $record->id }}
+                                        Ref: #{{ $record->borrow_record_id }}
                                     </span>
                                 </div>
                             </td>
@@ -96,18 +95,18 @@
                                     <div class="flex items-center gap-2">
                                         <span class="text-[9px] font-black text-red-700 uppercase tracking-tighter bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Out:</span>
                                         <span class="text-xs font-bold text-brand-navy">
-                                            {{ $record->borrow_date->format('M d, Y') }}
+                                            {{ \Carbon\Carbon::parse($record->borrow_date)->format('M d, Y') }}
                                             <span class="text-neutral-body ml-1 font-normal italic">
-                                                {{ $record->borrow_date->format('h:i A') }}
+                                                {{ \Carbon\Carbon::parse($record->check_out_time)->format('h:i A') }}
                                             </span>
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-tighter bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">Due:</span>
                                         <span class="text-xs font-bold text-brand-navy">
-                                            {{ $record->expected_return_date->format('M d, Y') }}
+                                            {{ \Carbon\Carbon::parse($record->expected_return_date)->format('M d, Y') }}
                                             <span class="text-neutral-body ml-1 font-normal italic">
-                                                {{ $record->expected_return_date->format('h:i A') }}
+                                                {{ \Carbon\Carbon::parse($record->expected_return_time)->format('h:i A') }}
                                             </span>
                                         </span>
                                     </div>
@@ -116,16 +115,16 @@
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 @php
                                 $statusName = $record->status->status_name;
-                                $badgeStatus = match($statusName) {
-                                'Borrowed' => 'Warning', // Usually Orange/Yellow - shows action is still open
-                                'Overdue' => 'Overdue', // Red - shows critical attention needed
-                                'Returned' => 'Available', // Green - shows the cycle is complete
-                                default => 'Available'
+                                $badgeClass = match($statusName) {
+                                'Returned' => 'bg-green-50 text-green-700 border-green-200',
+                                'Cancelled' => 'bg-gray-100 text-gray-500 border-gray-200',
+                                'Approved' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                default => 'bg-orange-50 text-orange-700 border-orange-200', // Pending
                                 };
                                 @endphp
-                                <x-status-badge :status="$badgeStatus">
-                                    {{ strtoupper($statusName) }}
-                                </x-status-badge>
+                                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border {{ $badgeClass }}">
+                                    {{ $statusName }}
+                                </span>
                             </td>
                         </tr>
                         @empty

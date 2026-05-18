@@ -8,11 +8,12 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('statuses', function (Blueprint $table) {
-            $table->id();
-            $table->string('status_name');
+            $table->id('status_id');
+            $table->string('status_name', 100)->unique();
             $table->timestamps();
         });
     }
+
     public function down(): void
     {
         Schema::dropIfExists('statuses');
