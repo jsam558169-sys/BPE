@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BorrowRecord;
 use App\Models\ReturnRecord;
 use App\Models\Equipment;
+use App\Models\VActiveBorrow;
+use App\Models\VOverdueBorrow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +16,17 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // --- ACTIVE BORROWS (no return record yet) ---
+        // --- Use v_active_borrows to get only active borrow record IDs ---
+        // This replaces the whereDoesntHave('returnRecord') subquery with a
+        // clean read from the view.
+        $activeIds = VActiveBorrow::activeIds();
+
+        // --- Use v_overdue_borrows to know which records are overdue ---
+        $overdueIds = VOverdueBorrow::overdueIds();
+
+        // --- Main query still uses BorrowRecord so grouped display is preserved ---
         $activeQuery = BorrowRecord::with(['borrower', 'items.equipment', 'status'])
-            ->whereDoesntHave('returnRecord');
+            ->whereIn('borrow_record_id', $activeIds);
 
         if ($request->filled('active_search')) {
             $search = $request->active_search;
@@ -51,7 +61,9 @@ class DashboardController extends Controller
         $pendingLogs = $activeQuery->get();
         $categories  = \App\Models\EquipmentCategory::orderBy('category_name')->get();
 
-        return view('admin.dashboard', compact('pendingLogs', 'categories'));
+        // Pass overdueIds to the view so the blade can flag records without
+        // re-running a query per row.
+        return view('admin.dashboard', compact('pendingLogs', 'categories', 'overdueIds'));
     }
 
     public function history(Request $request)
@@ -127,8 +139,8 @@ class DashboardController extends Controller
         $record = BorrowRecord::with('returnRecord')->whereHas('returnRecord')->findOrFail($id);
 
         DB::transaction(function () use ($record) {
-            $record->returnRecord->delete(); // delete child first
-            $record->delete();              // then delete parent
+            $record->returnRecord->delete();
+            $record->delete();
         });
 
         return redirect()->back()->with('success', 'History record deleted.');

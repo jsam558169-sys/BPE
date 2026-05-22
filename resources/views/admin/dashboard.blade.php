@@ -127,7 +127,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap align-top text-[10px] font-bold text-neutral-body uppercase">
                                     <div>{{ \Carbon\Carbon::parse($log->borrow_date)->format('M d, Y') }}</div>
                                     <div class="text-gray-400">Due: {{ \Carbon\Carbon::parse($log->expected_return_date)->format('M d, Y') }}</div>
-                                    @if($log->is_overdue)
+                                    @if($overdueIds)
                                     <span class="text-red-500 font-black">OVERDUE</span>
                                     @endif
                                 </td>
